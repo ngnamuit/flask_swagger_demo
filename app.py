@@ -2,14 +2,22 @@
 #!/usr/bin/python
 from flask import Flask, request, render_template, make_response
 from flask_restplus import Api, Resource, fields
+from flask_sqlalchemy import SQLAlchemy
 
+## config and connect to database
 flask_app = Flask(__name__)
-flask_app.debug = True
+flask_app.config["SQLALCHEMY_DATABASE_URI"] = 'postgresql+psycopg2://postgres:1@35.232.87.105/flask-swagger-db'
+flask_app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+flask_app.config["SQLALCHEMY_ECHO"] = True # log all the statements issued to stderr which can be useful for debugging
+db = SQLAlchemy(flask_app)
+
+## config to use swagger UI
 app = Api(app = flask_app,
 		  version = "1.0",
 		  title = "RestAPIs UI",
 		  description = "Manage routing of the application")
 
+## define route
 profile = app.namespace('profile', description='Own profile')
 about = app.namespace('about', description='<a href="/about">Click here to view my info</a>')
 coming_soon = app.namespace('coming_soon', description='<a href="/coming_soon">Click here to view new features coming soon</a>')
@@ -17,15 +25,22 @@ model = app.model('Name Model',
 				  {'name': fields.String(required = True,
     					  				 description="Name of the person",
     					  				 help="Name cannot be blank.")})
-
+##
 HTTP_CODE = {
 	'200': 'OK',
 	'400': 'Bad Request and Invalid Argument',
 	'403': 'FORBIDDEN',
 	'500': 'Mapping Key Error',
 }
+## Define TABLE
+class ResUsers(db.Model):
+	id = db.Column(db.Integer, primary_key=True)
+	username = db.Column(db.String(80), unique=True, nullable=False)
+	email = db.Column(db.String(120), unique=True, nullable=False)
 
 
+
+## Routing
 @coming_soon.route("/", methods=['GET'])
 class ComingSoon(Resource):
 	def get(self):
@@ -59,3 +74,9 @@ class ProfileClass(Resource):
 			name_space.abort(500, e.__doc__, status = "Could not retrieve information", statusCode = "500")
 		except Exception as e:
 			name_space.abort(400, e.__doc__, status = "Could not retrieve information", statusCode = "400")
+
+
+## APP RUN
+if __name__ == "__main__":
+	db.create_all()
+	flask_app.run(debug=True)
